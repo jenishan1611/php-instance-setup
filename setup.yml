@@ -1,0 +1,46 @@
+- name: Setting up Nginx
+  hosts: "{{ variable_host | default('localhost') }}"
+  gathering_facts: false
+  vars_prompt:
+    - name: is_nginx
+      prompt: "Do you want to install nginx? (yes/no)"
+      private: no
+  tasks:
+    - name: processing ...
+      include_playbook: nginx/nginx.yml
+      when: is_nginx | lower == 'yes'
+
+- name: Setting up PHP
+  hosts: "{{ variable_host | default('localhost') }}"
+  vars_prompt:
+    - name: is_php
+      prompt: "Do you want to install php? (yes/no)"
+      private: no
+  tasks:
+    - name: processing ...
+      include_playbook: php/php.yml
+      when: is_php | lower == 'yes'
+
+- name: Setting up Mysql
+  hosts: "{{ variable_host | default('localhost') }}"
+  vars_prompt:
+    - name: is_mysql
+      prompt: "Do you want to install Mysql? (yes/no)"
+      private: no
+  tasks:
+    - name: processing ...
+      include_playbook: mysql/mysql.yml
+      when: is_php | lower == 'yes'
+
+- name: Setting up GIT
+  hosts: "{{ variable_host | default('localhost') }}"
+  vars_prompt:
+    - name: is_git
+      prompt: "Do you want to install Git? (yes/no)"
+      private: no
+  tasks:
+    - name: processing ...
+      package:
+        name: git
+        state: present
+      when: is_git | lower == 'yes'

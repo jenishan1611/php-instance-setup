@@ -1,0 +1,110 @@
+---
+- name: Setting up Mysql
+  hosts: localhost
+  gather_facts: false
+  vars_prompt:
+    - name: root_password
+      prompt: "give me a mysql root password?"
+      private: no
+    
+  tasks:
+    - name: Installing Mysql  and dependencies
+      package:
+       name: "{{item}}"
+       state: present
+       update_cache: yes
+      loop:
+       - mysql-server
+       - mysql-client 
+       - python3-mysqldb
+       - libmysqlclient-dev
+      become: yes
+    
+    - name: start and enable mysql service
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+    
+    - name: Wait for MySQL to be up
+      wait_for:
+        port: 3306
+        delay: 10
+        timeout: 60
+
+    - name: Set MySQL root password
+      mysql_user:
+        login_user: root
+        login_password: ""
+        name: root
+        host: localhost
+        password: "{{root_password}}"
+        state: present
+    
+    - name: Remove anonymous users
+      mysql_user:
+        login_user: root
+        login_password: "{{root_password}}"
+        name: ''
+        host: localhost
+        state: absent
+
+    - name: Disallow root login remotely
+      mysql_user:
+        login_user: root
+        login_password: "{{root_password}}"
+        name: root
+        host: "{{ item }}"
+        state: absent
+      loop:
+        - '127.0.0.1'
+        - '::1'
+
+    - name: Remove test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{root_password}}"
+
+    - name: To continue
+      pause:
+        prompt: Please confirm do you want to create a mysql_user. Press enter to continue. Press Ctrl+c and then "a" to abort
+
+- name: Setting up MySQL
+  hosts: localhost
+  vars_prompt:
+    - name: db_user
+      prompt: "Give me a MySQL username you want to create:"
+      private: no
+    - name: db_pass
+      prompt: "Give me a MySQL user password:"
+      private: yes
+    - name: db_host
+      prompt: "Give me a MySQL user host? (localhost / %):"
+      private: no    
+
+  tasks:
+    - name: Create MySQL user
+      mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+        priv: '*.*:ALL'
+        host: '{{ db_host }}'
+        state: present
+
+    - name: Enable remote login to MySQL
+      copy:
+        src: ./mysql/mysqld.cnf
+        dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+      when: db_host == '%' and ansible_os_family == "Debian"
+      notify:
+        - Restart MySQL
+
+  handlers:
+    - name: Restart MySQL
+      service:
+        name: mysql
+        state: restarted
+
+...
